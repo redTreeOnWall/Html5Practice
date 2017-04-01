@@ -1,0 +1,896 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>像素鸟</title>
+<link href="./css.css" rel="stylesheet" type="text/css">
+</head>
+<body >
+	<table id ="t">
+	</table>
+
+	<canvas id="canvas" >
+		您的浏览器不支持HTML5 canvas，请换一个浏览器。
+	</canvas>
+
+	<!--
+	<div id = "console">
+		ddd
+	<div>
+	 -->
+
+ 	<script type="text/javascript">
+
+		var t = document.getElementById("t");
+		//1,移动   2，pc
+		var dev = 2;
+		var wi;
+		var he;
+		if(window.screen.height	<= window.screen.width){
+			wi =  1.0 * t.offsetWidth;
+			he = wi * 3/4;
+		}else{
+			wi =  t.offsetWidth;
+			he = wi * 4/3;
+		}
+
+	//	var he = wi * 3/4;
+ 		var canv = document.getElementById("canvas");
+ 		canv.width = wi;
+ 		canv.height = he;
+ 		var c =canv.getContext("2d");
+
+ 		var gameFont ={
+ 			consoleFont:wi/20+"px Georgia",
+ 			goalFont:wi/20+"px Georgia",
+ 			helpFont:wi/20+"px Georgia",
+ 			setNewFont:function(ctx,size,colorName){
+ 				ctx.fillStyle =colorName;
+ 	 			ctx.font = size+"px Georgia";
+ 			}
+ 		}
+ 		;
+
+ 		//控制器:
+ 		var controler ={
+ 			taps:0,
+ 			x:0,
+ 			y:0,
+ 			isConSetted:false,
+ 			controler:2,//0：鼠标 ； 1：触屏
+ 			controlerSet:function(taps1,positionX,positionY){
+ 				this.x = positionX;
+ 				this.y = positionY;
+ 				this.taps = taps1;
+ 			},
+ 			readControler:function(){
+
+ 				var con = {
+ 					taps:controler.taps,
+ 					x:controler.x,
+ 					y:controler.y,
+ 				}
+ 				controler.taps = 0;
+ 				return con;
+
+ 			}
+ 		}
+
+
+ 		var playing = false;
+ 		//状态
+ 		var gsm = {
+ 			GAME_LOAD:211,
+ 			GAME_START1:105,
+ 			GAME_START2:241,
+ 			GAME_OVER:403,
+ 			stata:211,
+ 		}
+
+
+ 		var deltTime = 20;
+ 		var thenTime = Date.now();
+ 		var setDeltTime = function(){
+ 			deltTime = Date.now() - thenTime;
+ 			thenTime = Date.now();
+
+ 		}
+
+ 		var goal = {
+ 			x:0,
+ 			y:he-wi/20,
+ 			size:wi/2,
+ 			goal:0,
+ 			highGoal:0,
+ 			setHightGoal:function(go){
+ 				if(this.highGoal<go){
+ 					this.highGoal = go;
+ 					return true;
+ 				}
+ 				return false;
+ 			},
+ 			drawGoal:function(ctx){
+ 				gameFont.setNewFont(ctx,wi/20,"#ffff00");
+ 				ctx.fillText("分数："+this.goal,this.x,this.y);
+ 			}
+ 		}
+
+ 		//views
+
+
+
+ 		gameName = {
+ 			enable:false,
+ 			text:"像素鸟",
+ 			size:wi*0.9,
+ 			h:this.size*493/980,
+ 			draw:function(ctx,im){
+ 				if(this.enable == true){
+ 					/*
+ 				   ctx.lineWidth = 0.003* this.size;
+ 					gameFont.setNewFont(ctx,this.size/3,"#ff0000");
+ 					ctx.fillText(this.text,0,this.size/3);
+ 					gameFont.setNewFont(ctx,this.size/3,"#000000");
+ 					ctx.strokeText(this.text,0,this.size/3);
+ 					*/
+ 					ctx.drawImage(im,wi*0.5-this.size*0.5,0,this.size,this.size*493/980);
+ 				}
+ 			},
+ 			show:function(){
+				if(this.enable == false){
+					this.enable = true;
+				}
+			},
+			hide:function(){
+				if(this.enable == true){
+					this.enable = false;
+				}
+			},
+ 		}
+
+ 		var helpPanel = {
+ 			hh:0.7*he,
+ 			size:0.05*wi,
+ 			text:"点击屏幕控制小鸟！",
+ 			enable:false,
+ 			show:function(){
+ 				if(this.enable == false){
+ 					this.enable = true;
+ 				}
+ 			},
+ 			hide:function(){
+ 				if(this.enable == true){
+ 					this.enable = false;
+ 				}
+ 			},
+ 			draw:function(ctx){
+ 				if(this.enable == true){
+ 					this.hh = he - this.size/2;
+ 					gameFont.setNewFont(ctx,wi/20,"#000000")
+ 					ctx.fillRect(0,this.hh-this.size,wi,this.size*5);
+ 					gameFont.setNewFont(ctx,this.size,"#00ff8f")
+ 					ctx.fillText(this.text,0,this.hh);
+ 				}
+ 			}
+
+ 		}
+
+ 		var gameOverView = {
+ 			enable:false,
+ 			size:wi/20,
+ 			draw:function(ctx){
+ 				gameFont.setNewFont(ctx,wi/6,"#ff8800");
+ 				ctx.fillText("游戏结束！",wi/6,0.1*he+wi/6);
+ 				gameFont.setNewFont(ctx,wi/20,"#ff8800");
+ 				ctx.fillRect(0,0.1*he+wi/4-wi/20,wi,wi/6);
+ 				gameFont.setNewFont(ctx,wi/20,"#000044");
+ 				ctx.fillText("本次得分："+goal.goal,0,0.1*he+wi/4);
+ 				ctx.fillText("最高得分："+goal.highGoal,0,0.1*he+wi/4+wi/20);
+ 				againButton.draw(ctx);
+ 			}
+ 		}
+
+ 		var againButton={
+ 			x:wi/2,
+ 			y:0.1*he+wi/4-wi/20+(wi/6-wi/10)/2,
+ 			w:wi/3,
+ 			h:wi/10,
+ 			fontSize:wi/15,
+ 			listen:function(){
+ 				var xp = canv.offsetLeft + this.x;
+ 				var yp = canv.offsetTop + this.y;
+ 				var con  = controler.readControler();
+ 				if(con.taps>0 &&
+ 						con.x>xp && con.x < xp+this.w
+ 						&&
+ 						con.y>yp && con.y < yp+this.h
+ 				){
+ 					reset();
+ 				}
+ 			},
+ 			draw:function(ctx){
+ 				gameFont.setNewFont(ctx,this.h,"#880088");
+				ctx.fillRect(this.x,this.y,this.w,this.h);
+ 				gameFont.setNewFont(ctx,this.fontSize,"#ffffff");
+				ctx.strokeRect(this.x,this.y,this.w,this.h);
+				gameFont.setNewFont(ctx,this.fontSize,"#88ff88");
+ 				ctx.fillText("再来一次",this.x+(this.w-4*this.fontSize)/2,this.y+this.fontSize);
+
+ 			}
+ 		}
+
+
+ 		var imgTag="";
+ 		if(dev == 1){
+ 			imgTag = "";
+ 		}else{
+ 			imgTag="";
+ 		}
+
+ 		var imgCount = 14;
+ 		var imgloaded = 0;
+
+ 		//bir相关
+ 		var bir={
+ 			jumpV:-he*0.001,
+ 			gJue:0.000002*he,
+ 			g:0.000002*he,
+ 			v:0,
+ 			sca:he/2,
+ 			x:wi/9,
+ 			y:he/2,
+ 			getCollider:function(){
+ 				var col = {
+ 					x:bir.x+bir.sca*2.2/9,
+ 					y:bir.y+bir.sca*2.5/9,
+ 					w:bir.sca*4.4/9,
+ 					h:bir.sca*3.7/9,
+ 				}
+ 				return col;
+ 			},
+ 			jump:function(){
+ 				if(controler.taps!=0){
+ 					this.v = this.jumpV * controler.taps;
+ 					controler.taps = 0;
+ 				}
+
+ 			}
+ 		}
+
+ 		var drop =function(){
+ 			//计算速度
+ 			if(deltTime>1000){
+ 				deltTime = 0;
+ 			}
+ 			bir.v = bir.v+bir.g*deltTime;
+ 			//计算位移
+ 			bir.y = bir.y + bir.v*deltTime;
+ 		}
+
+ 		var birs = [];
+ 		var birAnimationTime = 0;
+ 		var birAnimationToTalTime = 500;
+
+ 		var birs0Set = function(){
+ 			/*
+ 			if(bir.v>0){
+ 				birAnimationToTalTime = 200000;
+ 			}
+ 			if(bir.v<0){
+ 				birAnimationToTalTime = -60/bir.v
+ 			}
+ 			*/
+ 			birAnimationTime = birAnimationTime + deltTime;
+ 			//时间超过后重定位
+ 			if (birAnimationTime >= birAnimationToTalTime){
+ 				birAnimationTime = (birAnimationTime%birAnimationToTalTime);
+ 			}
+
+ 			var birFloat = 8*(birAnimationTime/birAnimationToTalTime);
+
+ 			birs[0] = Math.floor(birFloat)+1;
+
+ 	//		console.log("birs[0]:"+birs[0]) ;
+ 		}
+
+
+ 		//动画1
+ 		var gameStart1Ani ={
+ 			enale:false,
+ 			time:0,
+ 			startTime:0,
+ 			timeLength :10000,
+ 			flyStartTime :55,
+ 			startBound:{
+ 				x:0.1*wi,
+ 				y:0.5*he,
+ 				sca:0.5*he
+ 			},
+ 			endBound:{
+				x:0.1*wi,
+				y:0.7*he,
+				sca:he/6
+			},
+ 			play:function(){
+ 			//	console.log("gameStart1Ani.time:"+gameStart1Ani.time);
+ 				if(gameStart1Ani.time == 0){
+ 					gameStart1Ani.enale = true;
+ 					gameStart1Ani.startTime = Date.now();
+ 					bir.x = gameStart1Ani.startBound.x;
+ 					bir.y = gameStart1Ani.startBound.y;
+ 					bir.sca = gameStart1Ani.startBound.sca;
+ 				}
+ 				if(gameStart1Ani.time>=gameStart1Ani.timeLength){
+ 					gameStart1Ani.enale = false;
+ 					bir.x = gameStart1Ani.endBound.x;
+ 					bir.y = gameStart1Ani.endBound.y;
+ 					bir.sca = gameStart1Ani.endBound.sca;
+ 				}
+ 				if(gameStart1Ani.time>=gameStart1Ani.timeLength*0.7){
+ 					var lstTime = gameStart1Ani.timeLength - (Date.now()-gameStart1Ani.startTime);
+ 					var c= lstTime/deltTime;
+ 		//			console.log("c:"+lstTime);
+ 					bir.x = (gameStart1Ani.endBound.x -bir.x)/c + bir.x;
+ 					bir.y = (gameStart1Ani.endBound.y -bir.y)/c + bir.y;
+ 					bir.sca = (gameStart1Ani.endBound.sca -bir.sca)/c + bir.sca;
+ 				}
+ 				if(gameStart1Ani.enale == true){
+ 	 				gameStart1Ani.time = Date.now() - gameStart1Ani.startTime;
+ 	 				controler.controlerSet(0,0,0);
+ 				}
+ 			}
+ 		}
+
+
+
+
+ 		//cloud
+ 		var clouds = [];
+ 		var cloud = {
+ 			num:10,
+ 			maxScale:he,
+ 			minScale:0.2*he,
+ 			x:0,
+ 			y:0,
+ 			scale:wi,
+ 			move:function(cl){
+ 				if(cl.x+cl.scale>=0){
+ 					cl.x = cl.x - (0.2*cl.scale/1000 * deltTime);
+ 				}else{
+ 					cloud.setRandom(cl);
+ 				}
+ 			},
+ 			getRadomY:function(clOb){
+ 				var min = 0- clOb.scale;
+ 				var max = he;
+ 				var ry = min + Math.random() *(max);
+ 				return ry;
+ 			},
+ 			getRadomX:function(clOb){
+ 				var min = wi;
+ 				var max = 2*wi;
+ 				var rx = min + Math.random() *(max - min);
+ 				return rx;
+ 			},
+ 			setRandom:function(n){
+ 				n.scale =cloud.minScale + Math.random()*(cloud.maxScale - cloud.minScale);
+ 				n.y = cloud.getRadomY(n);
+ 				n.x = cloud.getRadomX(n);
+ 			},
+ 		}
+
+		function newScenc(){
+ 			var o = {
+					x :0,
+		 			y :0,
+		 			scale:0,
+			}
+ 			return o;
+ 		}
+
+ 		setClouds = function(){
+ 	 		for(var i=1;i<=cloud.num;i++){
+ 	 			clouds[i] = newScenc();
+ 	 			cloud.setRandom(clouds[i]);
+ 	 		}
+ 		}
+ 		setClouds();
+
+ 		//tree
+ 		var trees = [];
+ 		var tree = {
+ 			num:8,
+ 			maxScale:0.9*he,
+ 			minScale:0.3*he,
+ 			x:0,
+ 			y:0,
+ 			scale:wi,
+ 			l:-1,
+ 			r:-1,
+ 			move:function(cl){
+ 				if(cl.x+cl.scale>=0){
+ 					cl.x = cl.x - (0.5*cl.scale/1000 * deltTime);
+ 				}else{
+ 					tree.setRandom(cl);
+ 				}
+ 			},
+ 			getRadomY:function(clOb){
+ 				var min = 0- clOb.scale;
+ 				var max = he + clOb.scale;
+ 				var ry = min + Math.random() *(max);
+ 				return ry;
+ 			},
+ 			getRadomX:function(clOb){
+ 				var min = wi;
+ 				var max = 2*wi;
+ 				var rx = min + Math.random() *(max - min);
+ 				return rx;
+ 			},
+ 			setRandom:function(n,idi){
+ 				n.scale =tree.minScale + Math.random()*(tree.maxScale - tree.minScale);
+ 				n.y = he - n.scale;
+ 				n.x = tree.getRadomX(n);
+ 			},
+ 		}
+
+ 		setTrees=function(){
+ 			for(var i=1;i<=tree.num;i++){
+ 	 			trees[i] = newScenc();
+ 	 			tree.setRandom(trees[i],i);
+ 	 		}
+ 		}
+ 		setTrees();
+
+
+ 		//stone
+ 		var stones = [];
+ 		var stone = {
+ 			num:10,
+ 			maxScale:0.7*he,
+ 			minScale:0.3*he,
+ 			x:0,
+ 			y:0,
+ 			scale:wi,
+ 			move:function(cl){
+ 				if(cl.x+cl.scale>=0){
+ 					cl.x = cl.x - (0.05*he/1000 * deltTime);
+ 				}else{
+ 					stone.setRandom(cl);
+ 				}
+ 			},
+ 			getRadomY:function(clOb){
+ 				var min = 0- clOb.scale;
+ 				var max = he + clOb.scale;
+ 				var ry = min + Math.random() *(max);
+ 				return ry;
+ 			},
+ 			getRadomX:function(clOb){
+ 				var min = wi;
+ 				var max = 2*wi;
+ 				var rx = min + Math.random() *(max - min);
+ 				return rx;
+ 			},
+ 			setRandom:function(n){
+ 				n.scale =stone.minScale + Math.random()*(stone.maxScale - stone.minScale);
+ 				n.y = he - n.scale;
+ 				n.x = stone.getRadomX(n);
+ 			},
+ 		}
+
+ 		setStones= function(){
+ 			for(var i=1;i<=stone.num;i++){
+ 	 			stones[i] = newScenc();
+ 	 			stone.setRandom(stones[i]);
+ 	 		}
+ 		}
+ 		setStones();
+
+ 		//XX
+ 		var guans = [];
+ 		var guanWH = 1771/216;
+ 		var guan = {
+ 			num:1,
+ 			x:5*he, //!
+ 			y:0.2*he, //!
+ 			l:0.5*he, //!
+ 			maxL:0.5*he,
+ 			minL:0.3*he,
+ 			maxY:0.6*he,
+ 			minY:0.05*he,
+ 			scale:0.15*he,
+ 			isInGuanThen:false,
+ 			move:function(cl){
+ 				if(cl.x+guan.scale>=0){
+ 					cl.x = cl.x - (3*guan.scale/1000 * deltTime);
+ 				}else{
+ 					guan.setRandom(cl);
+ 				}
+ 			},
+ 			getRadomY:function(clOb){
+ 				var min = 0- clOb.scale;
+ 				var max = he + clOb.scale;
+ 				var ry = min + Math.random() *(max);
+ 				return ry;
+ 			},
+ 			getRadomX:function(clOb){
+ 				var min = wi;
+ 				var max = 2*wi;
+ 				var rx = min + Math.random() *(max - min);
+ 				return rx;
+ 			},
+ 			setRandom:function(n){
+ 				n.l = guan.minL + Math.random()*(guan.maxL -guan.minL);
+ 				n.y = guan.minY + Math.random()*(guan.maxY- n.l -guan.minY);
+ 				n.x = guan.getRadomX(n);
+ 			},
+ 			drawGuans:function(cxt){
+ 				for(var i=1;i<=guan.num;i++){
+ 					var guanH = guan.scale*guanWH;
+ 	 				var guanUpY = guans[i].y-guanH;
+ 	 				var guanDownY = guans[i].y+guans[i].l;
+ 					cxt.drawImage(guanDownImg,guans[i].x,guanUpY,guan.scale,guanH);
+ 					cxt.drawImage(guanUpImg,guans[i].x,guanDownY,guan.scale,guanH);
+ 		 		}
+ 			},
+ 			init:function(x1,y1,w1,h1,gu){
+
+ 				if(x1+w1>gu.x && x1<gu.x+guan.scale && (y1<gu.y || y1+h1>gu.y+gu.l)){
+ 					return true;
+ 				}else{
+ 					return false;
+ 				}
+ 			},
+ 			inGuan:function(x1,y1,w1,h1,gu){
+ 				if(x1+w1>gu.x && x1<gu.x+guan.scale && y1>gu.y && y1+h1<gu.y+gu.l){
+					this.isInGuanThen = true;
+ 				}else{
+					if(this.isInGuanThen){
+						goal.goal++;
+						this.isInGuanThen = false;
+					}
+ 				}
+ 			}
+ 		}
+ 		setGuans = function(){
+ 	 		for(var i=1;i<=guan.num;i++){
+ 	 			guans[i] = {
+ 	 					x:5*he, //!
+ 	 		 			y:0.2*he, //!
+ 	 		 			l:0.5*he, //!
+ 	 			}
+ 	 	//		guan.setRandom(guans[i]);
+ 	 		}
+ 		}
+ 		setGuans();
+
+ 		//========================================================================
+
+ 		var cloudImg;
+ 		var stoneImg;
+ 		var treeImg;
+ 		var guanUpImg;
+ 		var guanDownImg;
+ 		var TiImg;
+
+ 		loader ={
+ 			isComp:false,
+ 			oneLoadead:function(){
+ 				imgloaded++;
+ 				if(imgloaded == imgCount ){
+ 					loader.isComp = true;
+ 					gsm.stata = gsm.GAME_START1;
+ 				}
+ 			},
+ 		}
+
+ 		var loadimgs = function(){
+
+ 			TiImg = new Image();
+ 			TiImg.onload=function(){
+ 				loader.oneLoadead();
+ 			}
+ 			TiImg.src ="./birs/ti.png";
+
+ 			//load birs
+ 			for(var i = 1;i<=8;i++){
+ 				birs[i] = new Image();
+ 				birs[i].onload = function () {
+ 					loader.oneLoadead();
+ 		 		};
+ 		 		birs[i].src ="./birs/"+i+".png";
+ 			}
+ 			birs[0] = 1;
+
+ 			//load cloud
+ 			cloudImg = new Image();
+ 			cloudImg.onload = function () {
+ 				loader.oneLoadead();
+		 	};
+		 	cloudImg.src = "./scence/cloud"+imgTag+".png";
+
+		 	//load stone
+		 	stoneImg = new Image();
+		 	stoneImg.onload = function () {
+		 		loader.oneLoadead();
+		 	};
+		 	stoneImg.src= "./scence/stoneMin"+imgTag+".png";
+
+		 	//load tree
+		 	treeImg = new Image();
+		 	treeImg.onload = function () {
+		 		loader.oneLoadead();
+		 	};
+		 	treeImg.src= "./scence/treeMin"+imgTag+".png";
+
+
+
+		 	//load XX
+		 	guanUpImg = new Image();
+		 	guanDownImg = new Image();
+		 	guanUpImg.onload = function () {
+		 		loader.oneLoadead();
+		 	};
+		 	guanDownImg.onload = function () {
+				loader.oneLoadead();
+		 	};
+		 	guanUpImg.src= "./scence/upc"+imgTag+".png";
+		 	guanDownImg.src= "./scence/downc"+imgTag+".png";
+ 		}
+
+
+ 		loadimgs();
+
+ 		/*
+
+
+
+ 		addEventListener("ontouchstart",
+ 	 			function touchSatrt() {
+				bir.v = - 0.5;
+			}
+		);
+
+ 		if(dev ==1){
+ 		canv.ontouchstart = function(e){
+ 			playing = true;
+ 			bir.v = - 0.5;
+ 		}
+ 		}
+
+ 		if(dev == 2){
+ 	 		addEventListener("mousedown",
+ 	 			function onMouseDown() {
+ 	 			playing = true;
+ 	 			bir.v = bir.jumpV;
+ 	 			}
+ 	 		);
+ 	 		}
+
+ 		if(dev ==1){
+ 			canv.addEventListener("touchstart",
+ 	 			function touchSatrt() {
+ 				playing = true;
+				bir.v = bir.jumpV;
+			},
+			false
+			);
+ 	 	}
+ 		*/
+ 		//================================================================
+
+ 		addEventListener("touchstart",
+ 	 			function touchSatrt(e) {
+
+ 				if(controler.controler!=1){
+ 					controler.controler = 1;
+ 				}
+ 				if(controler.controler == 1){
+ 					controler.controlerSet(1,e.touches[0].pageX,e.touches[0].pageY,0);
+ 			//		console.log("x:"+e.touches[0].pageX+"    y:"+e.touches[0].pageY);
+ 				}
+
+
+
+			},
+			false
+			);
+
+ 		addEventListener("mousedown",
+ 	 			function onMouseDown(e) {
+ 				if(controler.isConSetted == false && controler.controler!=1){
+					controler.controler = 0;
+					controler.isConSetted=true;
+				}
+ 	 			if(controler.controler == 0){
+ 					controler.controlerSet(1,e.pageX,e.pageY);
+ 					console.log("x:"+e.pageX+"y:"+e.pageY);
+ 				}
+ 	 		},
+ 	 		false);
+
+ 	//==============================================================================
+ 		function ju(){
+ 		/*
+ 			if(bir.y+bir.sca>he){
+ 				bir.y = he -bir.sca;
+ 				bir.v = - bir.v * 0.8;
+ 			}
+ 		*/
+ 			if(bir.getCollider().y<=0||bir.getCollider().y+bir.getCollider().h>=he){
+ 				gsm.stata = gsm.GAME_OVER;
+ 			}
+
+ 			for(var i=1;i<=guan.num;i++){
+	 	 		if(guan.init(bir.getCollider().x,bir.getCollider().y,bir.getCollider().w,bir.getCollider().h,guans[i])){
+	 	 			gsm.stata = gsm.GAME_OVER;
+	 	 		}
+	 	 		guan.inGuan(bir.getCollider().x,bir.getCollider().y,bir.getCollider().w,bir.getCollider().h,guans[i]);
+ 			}
+
+ 			if(gsm.stata == gsm.GAME_OVER){
+ 				goal.setHightGoal(goal.goal);
+ 			//	reset();
+ 			}
+
+ 		}
+
+ 		scence = function(){
+ 			//云游
+ 			for(var i=1;i<=cloud.num;i++){
+ 	 			cloud.move(clouds[i]);
+ 	 		}
+ 			//石走
+ 			for(var i=1;i<=stone.num;i++){
+ 	 			stone.move(stones[i]);
+ 	 		}
+ 			//树移
+ 			for(var i=1;i<=tree.num;i++){
+ 	 			tree.move(trees[i]);
+ 	 		}
+ 		}
+
+ 		var update = function(){
+ 			switch(gsm.stata){
+ 			case gsm.GAME_LOAD:
+ 				gameName.show();
+ 				break;
+ 			case gsm.GAME_START1:
+ 				gameStart1Ani.play();
+ 				gameName.show();
+ 				scence();
+ 				birs0Set();
+ 				if(gameStart1Ani.enale == true){
+
+ 				}else{
+
+ 	 				helpPanel.show();
+ 					if(controler.readControler().taps>0){
+ 						gsm.stata = gsm.GAME_START2;
+ 						controler.controlerSet(1,0,0);
+ 						helpPanel.hide();
+ 						gameName.hide();
+ 					}
+ 				}
+ 	 			break;
+ 			case gsm.GAME_START2:
+ 				scence();
+ 				//guanyi
+ 	 			for(var i=1;i<=guan.num;i++){
+ 	 	 			guan.move(guans[i]);
+ 	 	 		}
+ 	 			birs0Set();
+ 	 			if(controler.readControler().taps>0){
+ 	 				bir.v = bir.jumpV;
+ 	 			}
+ 	 			drop();
+ 	 			ju();
+ 	 			break;
+ 			case gsm.GAME_OVER:
+ 				againButton.listen();
+ 	 			break;
+ 			}
+
+ 			paint();
+
+ 		}
+
+ 		var paint =  function(){
+
+ 			//clear
+ 			c.fillStyle ="#5d6cff";
+ 			c.fillRect(0,0,wi,he);
+
+ 			if(imgCount == imgloaded){
+
+ 				for(var i=1;i<=cloud.num;i++){
+ 		 			c.drawImage(cloudImg,clouds[i].x,clouds[i].y,clouds[i].scale,clouds[i].scale);
+ 		 		}
+
+ 				for(var i=1;i<=stone.num;i++){
+ 		 			c.drawImage(stoneImg,stones[i].x,stones[i].y,stones[i].scale,stones[i].scale);
+ 		 		}
+
+ 				for(var i=1;i<=tree.num;i++){
+ 		 			c.drawImage(treeImg,trees[i].x,trees[i].y,trees[i].scale,trees[i].scale);
+ 		 		}
+
+ 				c.drawImage(birs[birs[0]],bir.x,bir.y,bir.sca,bir.sca);
+ 				guan.drawGuans(c);
+
+ 				if(helpPanel.enable==true){
+ 					helpPanel.draw(c);
+ 				}
+ 				if(gameName.enable ==true){
+ 					gameName.draw(c,TiImg);
+ 				}
+
+ 				if(gsm.stata ==gsm.GAME_START2){
+ 					goal.drawGoal(c);
+ 				}
+
+ 				if(gsm.stata == gsm.GAME_OVER){
+ 					gameOverView.draw(c);
+ 				}
+
+ 			}else{
+ 				c.fillStyle = "#ff8800";
+ 			//	c.fillRect(0.3*wi,0.3*wi,0.2*wi,0.2*wi);
+ 				c.font=gameFont.consoleFont;
+ 				c.fillText("正在加载资源:"+Math.floor(100*imgloaded/imgCount)+"%",
+ 						0.3*wi,
+ 						0.35*wi
+ 				);
+ 			}
+
+
+ 			if(Date.now() - tim > 500){
+ 				tim = Date.now();
+ 				fps = Math.floor(1000/deltTime);
+ 			}
+ 			c.fillStyle ="#ff0000";
+ 			c.font = gameFont.goalFont;
+ 			c.fillText("fps:"+fps,0,5+wi/20);
+ 		}
+
+ 		reset=function(){
+ 			gsm.stata = gsm.GAME_START1;
+ 			goal.goal = 0;
+ 			setGuans();
+ 			setTrees();
+ 			setClouds();
+ 			setStones();
+ 		}
+
+ 		var tim = 0;
+ 		var fps = 0;
+
+ 		var tm = 16;
+ 		var thenTime2;
+ 		var timeTemp;
+
+ 		var main = function(){
+ 			setDeltTime();
+ 			thenTime2 = Date.now();
+ 	 		update();
+ 	 		timeTemp = Date.now()-thenTime2;
+ 	 		if(timeTemp>=tm){
+ 	 			setTimeout(main,1);
+ 	 		}else{
+ 	 			setTimeout(main,tm-timeTemp);
+ 	 	//		console.log("deltTime:"+deltTime);
+ 	 	//		c.fillText("deltTime:"+deltTime,wi/2,he/2);
+ 	 		}
+
+ 	 	//	requestAnimationFrame(main);
+ 		}
+
+ 		main();
+
+
+ 		var w = window;
+ 		requestAnimationFrame = w.requestAnimationFrame || w.webkitRequestAnimationFrame || w.msRequestAnimationFrame || w.mozRequestAnimationFrame;
+ 	</script>
+
+</body>
+</html>
